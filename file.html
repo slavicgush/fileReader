@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>File</title>
+    <style>
+      body {
+        margin: 0 auto;
+        background-color: #f4f4f4;
+        /* text-align: center; */
+      }
+      h1{
+        margin-left: 25%;
+      }
+      button {
+        background-color: seagreen;
+        margin-left: 25%;
+        margin-top: 3%;
+        font-size: 32px;
+        display: block;
+        height: 50px;
+        cursor: pointer;
+      }
+      button:hover{
+        background-color: #eb6;
+      }
+      input {
+        display: block;
+        height: 50px;
+        margin-left: 25%;
+        margin-top: 5%;
+        font-size: 32px;
+        cursor: pointer;
+      }
+      #area {
+        margin-top: 3% ;
+        margin-left: 10%;
+        margin-right: 5%;
+        min-width: 40%;
+        min-height: 30vh;
+        background-color: #eb6;
+        border: 2px solid black;
+        padding: 3% 10%;
+        font-size: 32px;
+      }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf_viewer.min.css"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.0.1/mammoth.browser.min.js"></script>
+  </head>
+  <body>
+    <h1>DOCUMENT READER </h1>
+    <input type="file" id="fileinput" />
+    <button id="button">Show Document</button>
+    <div id="area"></div>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("button").addEventListener("click", () => {
+          const fileinput = document.getElementById("fileinput");
+          const file = fileinput.files[0];
+          if (file) {
+            const reader = new FileReader();
+            const fileExtension = file.name.split(".").pop().toLowerCase();
+            if (fileExtension === "txt" || fileExtension === "text/plain") {
+              reader.readAsText(file);
+              reader.onload = function (e) {
+                const content = e.target.result;
+                renderText(content);
+              };
+            } else if (
+              fileExtension === "docx" ||
+              file.type ===
+                "application/vnd.openxmlformarts-officedocument.wordprocessingml.document"
+            ) {
+              reader.readAsArrayBuffer(file);
+              reader.onload = function (e) {
+                reader.onload = function (e) {
+                  let content = e.target.result;
+                  renderDocx(content);
+                }
+              }
+            } else if (fileExtension === "pdf") {
+              reader.readAsArrayBuffer(file);
+              reader.onload = function (e) {
+                const content = e.target.result;
+                renderPdf(content);
+              };
+            } else if (
+              fileExtension === "png" ||
+              fileExtension === "jpg" ||
+              fileExtension === "jpeg" ||
+              fileExtension === "svg" ||
+              fileExtension === "avif"
+            ) {
+              reader.readAsDataURL(file);
+              reader.onload = function (e) {
+                const content = e.target.result;
+                renderImg(content);
+              };
+            } else {
+              reader.readAsText(file);
+              reader.onload = function (e) {
+                const content = e.target.result;
+                renderData(content);
+              };
+            }
+          } else {
+            let source = document.getElementById("area");
+            source.innerHTML = "No Document selected";
+          }
+        });
+        function renderText(content) {
+          let source = document.getElementById("area");
+          source.innerText = `${content}`;
+        }
+        function renderDocx(content) {
+          const arrayBuffer = content;
+
+          // Convert ArrayBuffer to Uint8Array
+          const uint8Array = new Uint8Array(arrayBuffer);
+
+          // Convert Uint8Array to string
+          const binaryString = String.fromCharCode.apply(null, uint8Array);
+
+          // Use mammoth to extract raw text
+          mammoth
+            .extractRawText({ arrayBuffer: binaryString })
+            .then((result) => {
+              const content = result.value;
+              console.log("File contents:\n", content);
+
+              // You can do further processing with the extracted content
+            })
+            .catch((error) => {
+              console.error("Error extracting text:", error);
+            });
+        }
+        function renderPdf(content) {
+          let source = document.getElementById("area");
+          //  canvas element with id 'pdfCanvas'
+          let canvas = document.createElement("canvas");
+          canvas.id = "pdfCanvas";
+          source.innerHTML = ""; // Clear previous content
+          source.appendChild(canvas);
+
+          // Initialize PDF.js
+          pdfjsLib
+            .getDocument({ data: atob(content.split(",")[1]) })
+            .then((pdfDoc) => {
+              //  with id 'pdfCanvas'
+              let pdfCanvas = document.getElementById("pdfCanvas");
+              let ctx = pdfCanvas.getContext("2d");
+
+              // Load the first page
+              pdfDoc.getPage(1).then((page) => {
+                let viewport = page.getViewport({ scale: 1.5 });
+                pdfCanvas.height = viewport.height;
+                pdfCanvas.width = viewport.width;
+
+                // Render the page into the canvas
+                let renderContext = {
+                  canvasContext: ctx,
+                  viewport: viewport,
+                };
+                page.render(renderContext);
+              });
+            });
+        }
+
+        function renderImg(content) {
+          let source = document.getElementById("area");
+          let img = document.createElement("img");
+          img.setAttribute("src", content);
+          img.setAttribute("alt", "Img");
+          img.style.maxWidth = '100%';
+          source.innerText = " ";
+          source.appendChild(img);
+        }
+        function renderData(content) {
+          let source = document.getElementById("area");
+          source.innerText = `UNSUPPORTED FORMART \n\n ${content} `;
+        }
+      });
+    </script>
+  </body>
+</html>
